@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, TextInput, Alert, Platform, Linking } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, TextInput, Alert, Platform, Linking, AppState, AppStateStatus } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { GlassCard } from '../components/GlassCard';
 import { ProgressRing } from '../components/ProgressRing';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { initializeHealthConnect, requestHealthPermissions, fetchDailyHealthMetrics } from '../services/healthConnect';
+import { initializeHealthConnect, requestHealthPermissions, fetchDailyHealthMetrics, checkHealthPermissions } from '../services/healthConnect';
 
 interface ActivityItem {
   _id: string;
@@ -37,6 +37,7 @@ export const DashboardScreen: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string>('');
+  const [hasPermissions, setHasPermissions] = useState<boolean>(false);
   
   // Log Activity Modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -64,9 +65,16 @@ export const DashboardScreen: React.FC = () => {
   };
 
   const syncHealthMetrics = async () => {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS !== 'android' || syncing) return;
     setSyncing(true);
     try {
+      const permGranted = await checkHealthPermissions();
+      setHasPermissions(permGranted);
+      if (!permGranted) {
+        setSyncing(false);
+        return;
+      }
+
       const metrics = await fetchDailyHealthMetrics();
       const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const response = await api.put('/user/sync-health', {
@@ -90,6 +98,11 @@ export const DashboardScreen: React.FC = () => {
     }
   };
 
+  const syncRef = React.useRef(syncHealthMetrics);
+  useEffect(() => {
+    syncRef.current = syncHealthMetrics;
+  });
+
   useEffect(() => {
     fetchDashboardData();
 
@@ -98,12 +111,38 @@ export const DashboardScreen: React.FC = () => {
         const status = await initializeHealthConnect();
         setHcStatus(status);
         if (status === 1) {
-          await syncHealthMetrics();
+          const permGranted = await checkHealthPermissions();
+          setHasPermissions(permGranted);
+          if (permGranted) {
+            await syncHealthMetrics();
+          }
         }
       }
     };
     setupHealthConnect();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || hcStatus !== 1) return;
+
+    // Periodic auto-sync every 15 seconds
+    const interval = setInterval(() => {
+      syncRef.current();
+    }, 15000);
+
+    // Sync when app returns to foreground
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        syncRef.current();
+      }
+    };
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [hcStatus]);
 
   const handleLogActivity = async () => {
     if (!actTitle.trim()) {
@@ -191,59 +230,47 @@ export const DashboardScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Health Connect Sync Status Card */}
-        {hcStatus === 1 && (
+        {/* Health Connect Connection/Status Cards */}
+        {hcStatus === 1 && !hasPermissions && (
           <GlassCard style={styles.syncCard} solid={true}>
             <View style={styles.syncRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
-                <MaterialIcons name="health-and-safety" size={22} color="#22c55e" />
+                <MaterialIcons name="health-and-safety" size={22} color={theme.colors.primary} />
                 <View style={styles.syncInfo}>
-                  <Text style={styles.syncTitle}>Google Health Connect</Text>
+                  <Text style={styles.syncTitle}>Connect Health App</Text>
                   <Text style={styles.syncStatus}>
-                    {syncing 
-                      ? 'Syncing data...' 
-                      : lastSyncedTime 
-                        ? `Last synced at ${lastSyncedTime}` 
-                        : 'Real fitness tracking active'}
+                    Sync steps and calories automatically from your phone
                   </Text>
                 </View>
               </View>
               <TouchableOpacity 
-                style={[
-                  styles.syncBtn,
-                  justSynced && { backgroundColor: '#16a34a' } // Darker green when synced successfully
-                ]} 
+                style={styles.syncBtn} 
                 onPress={async () => {
-                  await requestHealthPermissions();
-                  await syncHealthMetrics();
+                  const success = await requestHealthPermissions();
+                  if (success) {
+                    const check = await checkHealthPermissions();
+                    setHasPermissions(check);
+                    if (check) {
+                      await syncHealthMetrics();
+                    }
+                  }
                 }}
-                disabled={syncing}
               >
-                {syncing ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : justSynced ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <MaterialIcons name="check" size={14} color="#ffffff" />
-                    <Text style={styles.syncBtnText}>Synced</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.syncBtnText}>Sync Now</Text>
-                )}
+                <Text style={styles.syncBtnText}>Connect</Text>
               </TouchableOpacity>
             </View>
           </GlassCard>
         )}
 
-        {/* Health Connect Install Card (if not installed or needs update) */}
-        {(hcStatus === 2 || hcStatus === 3) && (
+        {hcStatus === 2 && (
           <GlassCard style={[styles.syncCard, { borderColor: 'rgba(234, 179, 8, 0.4)' }]} solid={true}>
             <View style={styles.syncRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
                 <MaterialIcons name="warning" size={22} color="#eab308" />
                 <View style={styles.syncInfo}>
-                  <Text style={styles.syncTitle}>Google Health Connect</Text>
+                  <Text style={styles.syncTitle}>Connect Health App</Text>
                   <Text style={styles.syncStatus}>
-                    {hcStatus === 2 ? 'Google Health Connect is not installed.' : 'Google Health Connect needs an update.'}
+                    Google Health Connect is required to sync fitness data
                   </Text>
                 </View>
               </View>
@@ -251,12 +278,33 @@ export const DashboardScreen: React.FC = () => {
                 style={[styles.syncBtn, { backgroundColor: '#eab308' }]} 
                 onPress={() => Linking.openURL('market://details?id=com.google.android.apps.healthdata')}
               >
-                <Text style={styles.syncBtnText}>{hcStatus === 2 ? 'Install' : 'Update'}</Text>
+                <Text style={styles.syncBtnText}>Install</Text>
               </TouchableOpacity>
             </View>
           </GlassCard>
         )}
 
+        {hcStatus === 3 && (
+          <GlassCard style={[styles.syncCard, { borderColor: 'rgba(234, 179, 8, 0.4)' }]} solid={true}>
+            <View style={styles.syncRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
+                <MaterialIcons name="warning" size={22} color="#eab308" />
+                <View style={styles.syncInfo}>
+                  <Text style={styles.syncTitle}>Connect Health App</Text>
+                  <Text style={styles.syncStatus}>
+                    Google Health Connect needs an update to sync data
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={[styles.syncBtn, { backgroundColor: '#eab308' }]} 
+                onPress={() => Linking.openURL('market://details?id=com.google.android.apps.healthdata')}
+              >
+                <Text style={styles.syncBtnText}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        )}
         {/* Daily Goal Ring Center Card */}
         <View style={styles.ringCardContainer}>
           <View style={styles.ringWrapper}>

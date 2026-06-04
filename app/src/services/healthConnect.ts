@@ -119,3 +119,27 @@ export const fetchDailyHealthMetrics = async (): Promise<DailyMetrics> => {
     return { steps: 0, calories: 0 };
   }
 };
+
+/**
+ * Checks whether the app currently has read permissions for both Steps and Calories.
+ */
+export const checkHealthPermissions = async (): Promise<boolean> => {
+  if (Platform.OS !== 'android') return false;
+
+  const hc = getHealthConnectModule();
+  if (!hc) return false;
+
+  try {
+    const granted = await hc.getGrantedPermissions();
+    const hasSteps = granted.some(
+      (p: any) => p.recordType === 'Steps' && p.accessType === 'read'
+    );
+    const hasCalories = granted.some(
+      (p: any) => p.recordType === 'TotalCaloriesBurned' && p.accessType === 'read'
+    );
+    return hasSteps && hasCalories;
+  } catch (err) {
+    console.error('Health Connect: Error checking permissions:', err);
+    return false;
+  }
+};
