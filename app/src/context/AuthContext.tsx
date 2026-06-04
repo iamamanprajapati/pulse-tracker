@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const savedToken = await SecureStore.getItemAsync('pt_token');
         const savedUserStr = await SecureStore.getItemAsync('pt_user');
-        
+
         if (savedToken && savedUserStr) {
           setToken(savedToken);
           setUser(JSON.parse(savedUserStr));
