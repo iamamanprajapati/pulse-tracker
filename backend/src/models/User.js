@@ -46,6 +46,18 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  todaySteps: {
+    type: Number,
+    default: 0
+  },
+  todayCalories: {
+    type: Number,
+    default: 0
+  },
+  lastSyncDate: {
+    type: String,
+    default: ''
+  },
   role: {
     type: String,
     default: 'Athlete'

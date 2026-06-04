@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, TextInput, Alert, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, TextInput, Alert, Platform, Linking } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { GlassCard } from '../components/GlassCard';
 import { ProgressRing } from '../components/ProgressRing';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { initializeHealthConnect, requestHealthPermissions, fetchDailyHealthMetrics } from '../services/healthConnect';
 
 interface ActivityItem {
   _id: string;
@@ -32,6 +33,10 @@ export const DashboardScreen: React.FC = () => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [quests, setQuests] = useState<QuestItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hcStatus, setHcStatus] = useState<number>(-1);
+  const [syncing, setSyncing] = useState(false);
+  const [justSynced, setJustSynced] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>('');
   
   // Log Activity Modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -58,8 +63,46 @@ export const DashboardScreen: React.FC = () => {
     }
   };
 
+  const syncHealthMetrics = async () => {
+    if (Platform.OS !== 'android') return;
+    setSyncing(true);
+    try {
+      const metrics = await fetchDailyHealthMetrics();
+      const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const response = await api.put('/user/sync-health', {
+        steps: metrics.steps,
+        calories: metrics.calories,
+        clientDate: todayStr
+      });
+      
+      if (updateUserStats) {
+        updateUserStats(response.data);
+      }
+      console.log('Health Connect: Daily metrics synced successfully.');
+      setJustSynced(true);
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncedTime(timeStr);
+      setTimeout(() => setJustSynced(false), 3000);
+    } catch (err) {
+      console.warn('Health Connect: Sync metrics failed', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
+
+    const setupHealthConnect = async () => {
+      if (Platform.OS === 'android') {
+        const status = await initializeHealthConnect();
+        setHcStatus(status);
+        if (status === 1) {
+          await syncHealthMetrics();
+        }
+      }
+    };
+    setupHealthConnect();
   }, []);
 
   const handleLogActivity = async () => {
@@ -96,7 +139,10 @@ export const DashboardScreen: React.FC = () => {
     }
   };
 
-  const todaySteps = user ? Math.round(user.lifetimeSteps % user.dailyStepGoal) : 7542;
+  const todaySteps = user && user.todaySteps !== undefined ? user.todaySteps : (user ? Math.round(user.lifetimeSteps % user.dailyStepGoal) : 7542);
+  const todayCalories = user && user.todayCalories !== undefined ? user.todayCalories : 1240;
+  const calorieProgress = Math.min(100, Math.round((todayCalories / 500) * 100));
+
   const dailyGoal = user ? user.dailyStepGoal : 10000;
   const progressRatio = Math.min(1, todaySteps / dailyGoal);
   const progressPercentage = Math.round(progressRatio * 100);
@@ -145,6 +191,72 @@ export const DashboardScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Health Connect Sync Status Card */}
+        {hcStatus === 1 && (
+          <GlassCard style={styles.syncCard} solid={true}>
+            <View style={styles.syncRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
+                <MaterialIcons name="health-and-safety" size={22} color="#22c55e" />
+                <View style={styles.syncInfo}>
+                  <Text style={styles.syncTitle}>Google Health Connect</Text>
+                  <Text style={styles.syncStatus}>
+                    {syncing 
+                      ? 'Syncing data...' 
+                      : lastSyncedTime 
+                        ? `Last synced at ${lastSyncedTime}` 
+                        : 'Real fitness tracking active'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={[
+                  styles.syncBtn,
+                  justSynced && { backgroundColor: '#16a34a' } // Darker green when synced successfully
+                ]} 
+                onPress={async () => {
+                  await requestHealthPermissions();
+                  await syncHealthMetrics();
+                }}
+                disabled={syncing}
+              >
+                {syncing ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : justSynced ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <MaterialIcons name="check" size={14} color="#ffffff" />
+                    <Text style={styles.syncBtnText}>Synced</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.syncBtnText}>Sync Now</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        )}
+
+        {/* Health Connect Install Card (if not installed or needs update) */}
+        {(hcStatus === 2 || hcStatus === 3) && (
+          <GlassCard style={[styles.syncCard, { borderColor: 'rgba(234, 179, 8, 0.4)' }]} solid={true}>
+            <View style={styles.syncRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
+                <MaterialIcons name="warning" size={22} color="#eab308" />
+                <View style={styles.syncInfo}>
+                  <Text style={styles.syncTitle}>Google Health Connect</Text>
+                  <Text style={styles.syncStatus}>
+                    {hcStatus === 2 ? 'Google Health Connect is not installed.' : 'Google Health Connect needs an update.'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={[styles.syncBtn, { backgroundColor: '#eab308' }]} 
+                onPress={() => Linking.openURL('market://details?id=com.google.android.apps.healthdata')}
+              >
+                <Text style={styles.syncBtnText}>{hcStatus === 2 ? 'Install' : 'Update'}</Text>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        )}
+
         {/* Daily Goal Ring Center Card */}
         <View style={styles.ringCardContainer}>
           <View style={styles.ringWrapper}>
@@ -191,9 +303,9 @@ export const DashboardScreen: React.FC = () => {
               <MaterialIcons name="local-fire-department" size={18} color="#ec4899" />
             </View>
             <Text style={styles.bentoLabel}>Calories</Text>
-            <Text style={styles.bentoValue}>1,240 <Text style={styles.bentoUnit}>kcal</Text></Text>
+            <Text style={styles.bentoValue}>{todayCalories.toLocaleString()} <Text style={styles.bentoUnit}>kcal</Text></Text>
             <View style={styles.bentoProgressBarBg}>
-              <View style={[styles.bentoProgressBarFill, { width: '60%', backgroundColor: '#ec4899' }]} />
+              <View style={[styles.bentoProgressBarFill, { width: `${calorieProgress}%`, backgroundColor: '#ec4899' }]} />
             </View>
           </GlassCard>
 
@@ -750,5 +862,47 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontFamily: theme.fonts.manrope.semibold,
     fontSize: 15,
+  },
+  syncCard: {
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    backgroundColor: '#f9fafb',
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  syncInfo: {
+    flex: 1,
+  },
+  syncTitle: {
+    fontSize: 13,
+    fontFamily: theme.fonts.manrope.semibold,
+    color: '#111827',
+  },
+  syncStatus: {
+    fontSize: 11,
+    fontFamily: theme.fonts.manrope.regular,
+    color: '#6b7280',
+    marginTop: 1,
+  },
+  syncBtn: {
+    backgroundColor: '#22c55e',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  syncBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontFamily: theme.fonts.manrope.semibold,
   }
 });

@@ -14,6 +14,8 @@ interface UserProfile {
   lifetimeSteps: number;
   lifetimeKilometers: number;
   lifetimeCalories: number;
+  todaySteps?: number;
+  todayCalories?: number;
   role: string;
   joinedDate: string;
 }
