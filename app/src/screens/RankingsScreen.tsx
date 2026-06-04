@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, Platform, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { GlassCard } from '../components/GlassCard';
@@ -22,6 +22,7 @@ export const RankingsScreen: React.FC = () => {
   const { user } = useAuth();
   const [rankings, setRankings] = useState<AthleteRank[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Exact dataset matching screenshot ranks
   const mockStandings: AthleteRank[] = [
@@ -146,6 +147,17 @@ export const RankingsScreen: React.FC = () => {
     fetchRankings();
   }, []);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchRankings();
+    } catch (err) {
+      console.warn('Rankings refresh failed', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const formatPoints = (pts: number) => {
     if (pts >= 1000) {
       return (pts / 1000).toFixed(1) + 'k';
@@ -169,7 +181,13 @@ export const RankingsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
+        }
+      >
         
         {/* Header Appbar */}
         <View style={styles.header}>

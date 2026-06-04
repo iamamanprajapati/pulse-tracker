@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, Alert, Platform, Dimensions, FlatList } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, Alert, Platform, Dimensions, FlatList, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
@@ -37,6 +37,7 @@ export const PrizesScreen: React.FC = () => {
   const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchPrizesData = async () => {
     try {
@@ -56,6 +57,17 @@ export const PrizesScreen: React.FC = () => {
   useEffect(() => {
     fetchPrizesData();
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchPrizesData();
+    } catch (err) {
+      console.warn('Prizes refresh failed', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleClaimReward = async (questId: string) => {
     setClaimingId(questId);
@@ -93,7 +105,13 @@ export const PrizesScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
+        }
+      >
         
         {/* Header Appbar */}
         <View style={styles.header}>

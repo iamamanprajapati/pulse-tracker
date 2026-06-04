@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, TextInput, Alert, Platform, Linking, AppState, AppStateStatus } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, TextInput, Alert, Platform, Linking, AppState, AppStateStatus, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { GlassCard } from '../components/GlassCard';
@@ -38,6 +38,7 @@ export const DashboardScreen: React.FC = () => {
   const [justSynced, setJustSynced] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string>('');
   const [hasPermissions, setHasPermissions] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Log Activity Modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -144,6 +145,20 @@ export const DashboardScreen: React.FC = () => {
     };
   }, [hcStatus]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchDashboardData(),
+        syncHealthMetrics()
+      ]);
+    } catch (err) {
+      console.warn('Dashboard refresh failed', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleLogActivity = async () => {
     if (!actTitle.trim()) {
       Alert.alert('Validation Error', 'Please enter a title for the activity.');
@@ -217,7 +232,18 @@ export const DashboardScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[theme.colors.primary]} 
+            tintColor={theme.colors.primary} 
+          />
+        }
+      >
         
         {/* Header Appbar */}
         <View style={styles.header}>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Platform, Alert, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { GlassCard } from '../components/GlassCard';
@@ -11,8 +11,9 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onEditProfile }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserProfile } = useAuth();
   const [badgeCount, setBadgeCount] = useState(15);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchBadgeCount = async () => {
@@ -26,6 +27,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onEditProfile }) =
     };
     fetchBadgeCount();
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const [rewardsRes, profileRes] = await Promise.all([
+        api.get('/rewards'),
+        api.get('/user/profile')
+      ]);
+      const dbBadges = rewardsRes.data.filter((r: any) => r.type === 'badge');
+      setBadgeCount(dbBadges.length + 12);
+      updateUserProfile(profileRes.data);
+    } catch (err) {
+      console.warn('Profile refresh failed', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -54,7 +72,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onEditProfile }) =
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#22c55e']} tintColor="#22c55e" />
+        }
+      >
         
         {/* Header Appbar */}
         <View style={styles.header}>
