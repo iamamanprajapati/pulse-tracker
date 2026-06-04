@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Local env files (highly critical to avoid committing credentials)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# Production / Build outputs
+dist/
+dist-ssr/
+build/
+web-build/
+.expo/
+*.tsbuildinfo
+
+# Generated native folders
+ios/
+android/
+
+# Metro / Debug logs
+.metro-health-check*
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# System Files / Editor configs
+.DS_Store
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
