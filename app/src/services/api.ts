@@ -35,6 +35,13 @@ api.interceptors.request.use(
   }
 );
 
+// Callback to notify AuthContext to update its React state on 401
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export const setUnauthorizedCallback = (callback: () => void) => {
+  onUnauthorizedCallback = callback;
+};
+
 // Global response interceptor for handling 401 Unauthorized errors
 api.interceptors.response.use(
   (response) => response,
@@ -44,6 +51,9 @@ api.interceptors.response.use(
       try {
         await SecureStore.deleteItemAsync('pt_token');
         await SecureStore.deleteItemAsync('pt_user');
+        if (onUnauthorizedCallback) {
+          onUnauthorizedCallback();
+        }
       } catch (err) {
         console.error('API: Error clearing unauthorized session:', err);
       }

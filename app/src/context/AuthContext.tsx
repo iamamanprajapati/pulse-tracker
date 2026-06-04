@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { setUnauthorizedCallback } from '../services/api';
 
 interface UserProfile {
   id: string;
@@ -34,6 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Register unauthorized callback to synchronize React state on 401
+    setUnauthorizedCallback(() => {
+      setToken(null);
+      setUser(null);
+    });
+
     // Load persisted session on app start
     const loadSession = async () => {
       try {
