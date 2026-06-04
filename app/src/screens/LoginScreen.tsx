@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, Image, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -10,25 +10,97 @@ export const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+        const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+        if (webClientId) {
+          GoogleSignin.configure({
+            webClientId,
+            offlineAccess: true,
+          });
+          console.log('GoogleSignin initialized with client ID:', webClientId);
+        } else {
+          console.log('GoogleSignin: EXPO_PUBLIC_GOOGLE_CLIENT_ID not found in environment. Mock flow will be active.');
+        }
+      } catch (err) {
+        console.error('Failed to initialize Google Sign-in native module:', err);
+      }
+    }
+  }, []);
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const tokenPayload = {
-        token: 'mock-google-token',
-        mockEmail: 'alex@pulsetrack.com',
-        mockName: 'Alex Henderson',
-        mockPhoto: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCVWf_EgZ3ed05m---xLADr8lrRgvXEJk0hUfWx4YJ3Qk1LyBlK4PxAdPKtNlZzkBRkDpUz-v1OnJ3iVD9w0IxLzCd5k7iBZWKDspsxsCSPwdsFWj1YqUeEytEbvbxmdNdo2sqgzrj9WCD0O9WxbFKubtW8uUQL6NcRZwHemHa7hvjvMeRoEgmD3pbTrovkskbo-wcX_25tlFYAaZcI6DHoLGpP136JuRzqQtPbtrej-0mmZz4HLXUU0pRnJAps_tKhCZJGvxVOGInu',
-      };
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
-      const response = await api.post('/auth/google', tokenPayload);
-      const { token, user } = response.data;
-      await login(token, user);
+      // Check if we should use the real native Google Sign-In flow
+      if (Platform.OS !== 'web' && webClientId) {
+        console.log('Initiating native Google Sign-in...');
+        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+        await GoogleSignin.hasPlayServices();
+        
+        // Log in to retrieve tokens
+        const signInResponse = await GoogleSignin.signIn();
+        
+        // Retrieve the idToken (supporting both modern nested data object and root response properties)
+        const idToken = signInResponse.data?.idToken || signInResponse.idToken;
+        if (!idToken) {
+          throw new Error('Google Sign-in did not return an ID token.');
+        }
+
+        console.log('Google Sign-in successful. Verifying token on backend...');
+        const response = await api.post('/auth/google', { token: idToken });
+        const { token, user } = response.data;
+        await login(token, user);
+      } else {
+        // Graceful Fallback: Dev/Mock login
+        let msg = 'Google Sign-In Client ID not configured. Logging in with mock developer credentials...';
+        if (Platform.OS === 'web') {
+          msg = 'Native Google Sign-In is unsupported on Web. Logging in with mock credentials...';
+        }
+        console.log(msg);
+        setErrorMsg(msg);
+        
+        // Delay login slightly so user sees the informative notice
+        setTimeout(async () => {
+          try {
+            const tokenPayload = {
+              token: 'mock-google-token',
+              mockEmail: 'alex@pulsetrack.com',
+              mockName: 'Alex Henderson',
+              mockPhoto: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCVWf_EgZ3ed05m---xLADr8lrRgvXEJk0hUfWx4YJ3Qk1LyBlK4PxAdPKtNlZzkBRkDpUz-v1OnJ3iVD9w0IxLzCd5k7iBZWKDspsxsCSPwdsFWj1YqUeEytEbvbxmdNdo2sqgzrj9WCD0O9WxbFKubtW8uUQL6NcRZwHemHa7hvjvMeRoEgmD3pbTrovkskbo-wcX_25tlFYAaZcI6DHoLGpP136JuRzqQtPbtrej-0mmZz4HLXUU0pRnJAps_tKhCZJGvxVOGInu',
+            };
+
+            const response = await api.post('/auth/google', tokenPayload);
+            const { token, user } = response.data;
+            await login(token, user);
+          } catch (mockErr: any) {
+            console.error('Mock login failed:', mockErr);
+            setErrorMsg('Authentication connection failed. Please ensure backend server is active.');
+          } finally {
+            setLoading(false);
+          }
+        }, 1500);
+        return; // Return early as loading is managed inside setTimeout
+      }
     } catch (err: any) {
       console.error('Google Sign-In failed:', err);
-      setErrorMsg('Authentication connection failed. Please ensure backend server is active.');
+      const isCancel = err.code === 'SIGN_IN_CANCELLED' || err.message?.includes('cancel');
+      if (isCancel) {
+        setErrorMsg('Sign-in cancelled by user.');
+      } else {
+        setErrorMsg('Google Sign-In failed: ' + (err.message || 'unknown error. Please check your backend connection.'));
+      }
     } finally {
-      setLoading(false);
+      // If we went down the native flow, set loading false immediately
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      const usesMock = Platform.OS === 'web' || !webClientId;
+      if (!usesMock) {
+        setLoading(false);
+      }
     }
   };
 
