@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { setUnauthorizedCallback } from '../services/api';
 
 interface UserProfile {
@@ -75,6 +76,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await SecureStore.deleteItemAsync('pt_token');
       await SecureStore.deleteItemAsync('pt_user');
+
+      // Revoke Google Sign-In session on native platforms
+      if (Platform.OS !== 'web') {
+        try {
+          const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+          const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+          if (webClientId) {
+            // Ensure GoogleSignin is configured before calling signOut
+            GoogleSignin.configure({
+              webClientId,
+              offlineAccess: true,
+            });
+            
+            // Safely sign out from Google
+            await GoogleSignin.signOut();
+            console.log('AuthContext: Signed out from Google session successfully.');
+          }
+        } catch (googleErr) {
+          // Catch and log silently so main logout is not blocked
+          console.warn('AuthContext: Google sign-out skipped or failed:', googleErr);
+        }
+      }
+
       setToken(null);
       setUser(null);
     } catch (err) {
