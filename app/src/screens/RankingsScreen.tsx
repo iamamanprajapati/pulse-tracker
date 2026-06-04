@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { GlassCard } from '../components/GlassCard';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface AthleteRank {
   id: string;
@@ -18,6 +19,7 @@ interface AthleteRank {
 }
 
 export const RankingsScreen: React.FC = () => {
+  const { user } = useAuth();
   const [rankings, setRankings] = useState<AthleteRank[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -172,7 +174,7 @@ export const RankingsScreen: React.FC = () => {
         {/* Header Appbar */}
         <View style={styles.header}>
           <View style={styles.profileBadge}>
-            <Image source={{ uri: mockStandings[4].photoUrl }} style={styles.profilePhoto} />
+            <Image source={{ uri: user?.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} style={styles.profilePhoto} />
             <View>
               <Text style={styles.profileGreeting}>PulseTrack</Text>
             </View>
@@ -212,7 +214,7 @@ export const RankingsScreen: React.FC = () => {
                     <MaterialIcons name="workspace-premium" size={26} color="#ffd700" style={styles.crownIcon} />
                   )}
                   <Image 
-                    source={{ uri: athlete.photoUrl }} 
+                    source={{ uri: athlete.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} 
                     style={[
                       styles.podiumAvatar, 
                       { borderColor: rankColor },
@@ -251,7 +253,7 @@ export const RankingsScreen: React.FC = () => {
                 <Text style={styles.rankNumberText}>{athlete.rank}</Text>
 
                 {/* Avatar Photo */}
-                <Image source={{ uri: athlete.photoUrl }} style={styles.athleteAvatar} />
+                <Image source={{ uri: athlete.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} style={styles.athleteAvatar} />
 
                 {/* Athlete Name and Level Info */}
                 <View style={styles.athleteInfo}>

@@ -137,7 +137,7 @@ export const DashboardScreen: React.FC = () => {
         {/* Header Appbar */}
         <View style={styles.header}>
           <View style={styles.profileBadge}>
-            <Image source={{ uri: user?.photoUrl }} style={styles.profilePhoto} />
+            <Image source={{ uri: user?.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} style={styles.profilePhoto} />
             <Text style={styles.profileGreeting}>PulseTrack</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn}>

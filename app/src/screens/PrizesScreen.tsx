@@ -98,7 +98,7 @@ export const PrizesScreen: React.FC = () => {
         {/* Header Appbar */}
         <View style={styles.header}>
           <View style={styles.profileBadge}>
-            <Image source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCVWf_EgZ3ed05m---xLADr8lrRgvXEJk0hUfWx4YJ3Qk1LyBlK4PxAdPKtNlZzkBRkDpUz-v1OnJ3iVD9w0IxLzCd5k7iBZWKDspsxsCSPwdsFWj1YqUeEytEbvbxmdNdo2sqgzrj9WCD0O9WxbFKubtW8uUQL6NcRZwHemHa7hvjvMeRoEgmD3pbTrovkskbo-wcX_25tlFYAaZcI6DHoLGpP136JuRzqQtPbtrej-0mmZz4HLXUU0pRnJAps_tKhCZJGvxVOGInu' }} style={styles.profilePhoto} />
+            <Image source={{ uri: user?.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} style={styles.profilePhoto} />
             <Text style={styles.profileGreeting}>PulseTrack</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn}>
@@ -128,7 +128,7 @@ export const PrizesScreen: React.FC = () => {
                 return (
                   <View style={[styles.questCard, { width: SCREEN_WIDTH - 46, marginRight: 14 }]}>
                     <View style={styles.questImageWrapper}>
-                      <Image source={{ uri: item.rewardImage }} style={styles.questRewardImage} />
+                      <Image source={{ uri: item.rewardImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHlj9ed06EGvVTX-TAzNl3aVKoLD0xsfOyVDgeLkc8L58MufBoj-Z8lEyfCdMCDxmCc7JJoGOcMbckMyEAgpPSTvFgcO_IA9tz2VgFErod5NFF7XZ__T_2QHTYHAJMVd3S-vKQyu6f77oaJix4dRMzFMYBqjHEnTnQmSR9dgVSn-e-PkHRf9zAHnkPRhaJq3dxfmwk5DHnBIUMrzFP1hWR6pBMtLC2pFVde5ul4NHEuQxxcAFU2VHqzlKxWFDz-16t2dzlnlVSNrKE' }} style={styles.questRewardImage} />
                     </View>
                     
                     <View style={styles.questInfo}>
@@ -245,7 +245,7 @@ export const PrizesScreen: React.FC = () => {
             ) : (
               claimedGears.map((reward) => (
                 <View key={reward._id} style={styles.rewardRowCard}>
-                  <Image source={{ uri: reward.image }} style={styles.rewardImage} />
+                  <Image source={{ uri: reward.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHlj9ed06EGvVTX-TAzNl3aVKoLD0xsfOyVDgeLkc8L58MufBoj-Z8lEyfCdMCDxmCc7JJoGOcMbckMyEAgpPSTvFgcO_IA9tz2VgFErod5NFF7XZ__T_2QHTYHAJMVd3S-vKQyu6f77oaJix4dRMzFMYBqjHEnTnQmSR9dgVSn-e-PkHRf9zAHnkPRhaJq3dxfmwk5DHnBIUMrzFP1hWR6pBMtLC2pFVde5ul4NHEuQxxcAFU2VHqzlKxWFDz-16t2dzlnlVSNrKE' }} style={styles.rewardImage} />
                   <View style={styles.rewardInfo}>
                     <Text style={styles.rewardTitle}>{reward.title}</Text>
                     <Text style={styles.rewardDate}>

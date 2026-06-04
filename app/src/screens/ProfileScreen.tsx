@@ -59,7 +59,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onEditProfile }) =
         {/* Header Appbar */}
         <View style={styles.header}>
           <View style={styles.profileBadge}>
-            <Image source={{ uri: user?.photoUrl }} style={styles.profilePhoto} />
+            <Image source={{ uri: user?.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} style={styles.profilePhoto} />
             <Text style={styles.profileGreeting}>PulseTrack</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn}>
@@ -72,7 +72,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onEditProfile }) =
           <View style={styles.avatarWrapper}>
             <View style={styles.ringBackground} />
             <View style={styles.avatarContainer}>
-              <Image source={{ uri: user?.photoUrl }} style={styles.avatar} />
+              <Image source={{ uri: user?.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80' }} style={styles.avatar} />
             </View>
             <View style={styles.levelBadge}>
               <Text style={styles.levelBadgeText}>LVL {user?.level || 42}</Text>
