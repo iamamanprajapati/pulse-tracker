@@ -23,7 +23,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     },
     {
       title: 'KINETIC DASHBOARD',
-      subtitle: 'Monitor active quest steps, calorie counts, and activity rings at a glance.',
+      subtitle: 'Monitor active prize steps, calorie counts, and activity rings at a glance.',
       icon: 'track-changes' as keyof typeof MaterialIcons.glyphMap,
       color: theme.colors.secondaryContainer,
       bgGrad: ['#0058be', '#2170e4']

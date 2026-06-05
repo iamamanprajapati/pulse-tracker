@@ -124,11 +124,11 @@ export const PrizesScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Active Quest Section */}
-        {/* Active Quests Section (Carousel) */}
+        {/* Active Prize Section */}
+        {/* Active Prizes Section (Carousel) */}
         {activeQuests.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active Quests ({activeQuests.length})</Text>
+            <Text style={styles.sectionTitle}>Active Prizes ({activeQuests.length})</Text>
             <FlatList
               data={activeQuests}
               horizontal
@@ -154,7 +154,7 @@ export const PrizesScreen: React.FC = () => {
                         {item.limitedEdition ? (
                           <Text style={styles.limitedLabel}>LIMITED EDITION</Text>
                         ) : (
-                          <Text style={[styles.limitedLabel, { color: theme.colors.primary }]}>SYSTEM QUEST</Text>
+                          <Text style={[styles.limitedLabel, { color: theme.colors.primary }]}>SYSTEM PRIZE</Text>
                         )}
                         {item.isPaused && (
                           <Text style={[styles.limitedLabel, { color: '#ef4444' }]}>PAUSED</Text>
@@ -192,10 +192,10 @@ export const PrizesScreen: React.FC = () => {
                       ) : (
                         <TouchableOpacity 
                           style={styles.detailsBtn}
-                          onPress={() => Alert.alert('Quest Details', `Accumulate ${(item.targetSteps - item.currentSteps).toLocaleString()} more steps to complete this quest.`)}
+                          onPress={() => Alert.alert('Prize Details', `Accumulate ${(item.targetSteps - item.currentSteps).toLocaleString()} more steps to claim this prize.`)}
                           activeOpacity={0.85}
                         >
-                          <Text style={styles.detailsBtnText}>View Quest Details</Text>
+                          <Text style={styles.detailsBtnText}>View Prize Details</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -206,10 +206,10 @@ export const PrizesScreen: React.FC = () => {
           </View>
         ) : (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active Quests</Text>
-            <View style={styles.questCard}>
+            <Text style={styles.sectionTitle}>Active Prizes</Text>
+            <View style={[styles.questCard, { padding: 16, alignItems: 'center' }]}>
               <MaterialIcons name="emoji-events" size={48} color="#9ca3af" style={{ marginBottom: 12 }} />
-              <Text style={[styles.questName, { textAlign: 'center', marginBottom: 4 }]}>All Quests Completed!</Text>
+              <Text style={[styles.questName, { textAlign: 'center', marginBottom: 4 }]}>All Prizes Claimed!</Text>
               <Text style={[styles.questDesc, { textAlign: 'center', marginBottom: 0 }]}>
                 Check back later for new fitness campaigns launched by the admin.
               </Text>
@@ -338,25 +338,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
+    overflow: 'hidden',
   },
   questImageWrapper: {
     width: '100%',
     height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    marginBottom: 16,
+    overflow: 'hidden',
   },
   questRewardImage: {
-    width: 140,
-    height: 140,
-    objectFit: 'contain',
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
   },
   questInfo: {
     width: '100%',
+    padding: 16,
   },
   limitedLabel: {
     fontSize: 10,
