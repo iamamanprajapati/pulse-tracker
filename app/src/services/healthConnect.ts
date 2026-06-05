@@ -301,3 +301,126 @@ export const fetchSleepSessionMetrics = async (): Promise<SleepMetrics> => {
     return { durationMinutes: 0, stageDeepMinutes: 0 };
   }
 };
+
+/**
+ * Queries steps for any custom date/time range.
+ */
+export const fetchStepsForDateRange = async (startTime: Date, endTime: Date): Promise<number> => {
+  if (Platform.OS !== 'android') return 0;
+
+  const hc = getHealthConnectModule();
+  if (!hc) return 0;
+
+  try {
+    const timeRangeFilter = {
+      operator: 'between',
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+    };
+
+    const stepsResult = await hc.aggregateRecord({
+      recordType: 'Steps',
+      timeRangeFilter,
+    });
+    return Math.round(stepsResult.COUNT_TOTAL || 0);
+  } catch (err) {
+    console.error(`Health Connect: Error fetching steps for range ${startTime.toISOString()} to ${endTime.toISOString()}:`, err);
+    return 0;
+  }
+};
+
+/**
+ * Queries steps for a specific Date (local time 00:00 to 23:59 or current time).
+ */
+export const fetchStepsForDate = async (date: Date): Promise<number> => {
+  if (Platform.OS !== 'android') return 0;
+  
+  const hc = getHealthConnectModule();
+  if (!hc) return 0;
+
+  try {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // If date is today, end range is now
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const endTime = isToday ? now.toISOString() : endOfDay.toISOString();
+
+    return await fetchStepsForDateRange(startOfDay, new Date(endTime));
+  } catch (err) {
+    console.error(`Health Connect: Error fetching steps for date ${date.toDateString()}:`, err);
+    return 0;
+  }
+};
+
+/**
+ * Queries steps for multiple specific dates in parallel.
+ * Returns a map of date strings to step counts.
+ */
+export const fetchStepsForDates = async (dates: Date[]): Promise<Record<string, number>> => {
+  if (Platform.OS !== 'android') return {};
+
+  const hc = getHealthConnectModule();
+  if (!hc) return {};
+
+  try {
+    const promises = dates.map(async (date) => {
+      const steps = await fetchStepsForDate(date);
+      return { dateStr: date.toDateString(), steps };
+    });
+
+    const results = await Promise.all(promises);
+    const stepMap: Record<string, number> = {};
+    results.forEach((res) => {
+      stepMap[res.dateStr] = res.steps;
+    });
+    return stepMap;
+  } catch (err) {
+    console.error('Health Connect: Error fetching steps for multiple dates:', err);
+    return {};
+  }
+};
+
+/**
+ * Queries all individual step records for today and aggregates them by hour (0 to 23).
+ * Returns an array of 24 numbers.
+ */
+export const fetchHourlyStepsForToday = async (): Promise<number[] | null> => {
+  if (Platform.OS !== 'android') return null;
+
+  const hc = getHealthConnectModule();
+  if (!hc) return null;
+
+  try {
+    const now = new Date();
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const timeRangeFilter = {
+      operator: 'between',
+      startTime: startOfDay.toISOString(),
+      endTime: now.toISOString(),
+    };
+
+    const records = await hc.readRecords('Steps', {
+      timeRangeFilter,
+    });
+
+    const hourlySteps = Array(24).fill(0);
+    if (records && records.length > 0) {
+      records.forEach((record: any) => {
+        const hr = new Date(record.startTime).getHours();
+        hourlySteps[hr] += record.count || 0;
+      });
+      return hourlySteps;
+    }
+    return null;
+  } catch (err) {
+    console.error('Health Connect: Error fetching hourly steps:', err);
+    return null;
+  }
+};

@@ -6,7 +6,7 @@ import { GlassCard } from '../components/GlassCard';
 import { ProgressRing } from '../components/ProgressRing';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { fetchHeartRateMetrics, checkHeartRatePermission, fetchSleepSessionMetrics, checkSleepPermission } from '../services/healthConnect';
+import { fetchHeartRateMetrics, checkHeartRatePermission, fetchSleepSessionMetrics, checkSleepPermission, fetchStepsForDates, fetchHourlyStepsForToday, fetchStepsForDateRange, fetchStepsForDate, checkHealthPermissions } from '../services/healthConnect';
 
 interface InsightsScreenProps {
   onBack: () => void;
@@ -186,6 +186,10 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [realHeartRate, setRealHeartRate] = useState<number | null>(null);
   const [realSleep, setRealSleep] = useState<any | null>(null);
+  const [realHourlySteps, setRealHourlySteps] = useState<number[] | null>(null);
+  const [realWeeklySteps, setRealWeeklySteps] = useState<Record<string, number>>({});
+  const [realMonthlySteps, setRealMonthlySteps] = useState<Record<string, number>>({});
+  const [realYearlySteps, setRealYearlySteps] = useState<Record<number, number>>({});
 
   useEffect(() => {
     let active = true;
@@ -232,77 +236,148 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
       }
     };
 
+    const fetchRealStepsData = async () => {
+      try {
+        const hasPerm = await checkHealthPermissions();
+        if (hasPerm) {
+          // 1. Fetch hourly steps for today
+          const hourly = await fetchHourlyStepsForToday();
+          if (active && hourly) {
+            setRealHourlySteps(hourly);
+          }
+
+          // 2. Fetch past 7 days' steps for week
+          const weekDates: Date[] = [];
+          const now = new Date();
+          const getMonday = (d: Date) => {
+            const date = new Date(d);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(date.setDate(diff));
+          };
+          const monday = getMonday(now);
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            weekDates.push(d);
+          }
+          const weekSteps = await fetchStepsForDates(weekDates);
+          if (active) {
+            setRealWeeklySteps(weekSteps);
+          }
+
+          // 3. Fetch past 30 days' steps for month
+          const monthDates: Date[] = [];
+          for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(now.getDate() - i);
+            monthDates.push(d);
+          }
+          const monthSteps = await fetchStepsForDates(monthDates);
+          if (active) {
+            setRealMonthlySteps(monthSteps);
+          }
+
+          // 4. Fetch past 12 months' steps for year
+          const yearStepsMap: Record<number, number> = {};
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth();
+          const yearPromises = Array.from({ length: currentMonth + 1 }, async (_, m) => {
+            const startOfMonth = new Date(currentYear, m, 1);
+            const endOfMonth = m === currentMonth ? new Date() : new Date(currentYear, m + 1, 0, 23, 59, 59, 999);
+            const steps = await fetchStepsForDateRange(startOfMonth, endOfMonth);
+            return { month: m, steps };
+          });
+          const yearResults = await Promise.all(yearPromises);
+          yearResults.forEach((res) => {
+            yearStepsMap[res.month] = res.steps;
+          });
+          if (active) {
+            setRealYearlySteps(yearStepsMap);
+          }
+        }
+      } catch (err) {
+        console.warn('Insights: Failed to fetch real steps data', err);
+      }
+    };
+
     fetchActivities();
     fetchRealBpm();
     fetchRealSleep();
+    fetchRealStepsData();
     return () => {
       active = false;
     };
   }, []);
 
-  const currentMonthValues = React.useMemo(() => {
-    const now = new Date();
-    const todaySteps = user?.todaySteps || 0;
-    const monthValuesList: number[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const targetDay = new Date();
-      targetDay.setDate(now.getDate() - i);
-      targetDay.setHours(0, 0, 0, 0);
-      
-      if (i === 0) {
-        monthValuesList.push(todaySteps);
-      } else {
-        const dayActivities = activities.filter((act) => {
-          const actDate = new Date(act.timestamp);
-          actDate.setHours(0, 0, 0, 0);
-          return actDate.getTime() === targetDay.getTime();
-        });
-        const activitySteps = dayActivities.reduce((sum, act) => sum + (act.steps || 0), 0);
-        
-        const seed = targetDay.getDate() + targetDay.getMonth() * 31 + targetDay.getFullYear();
-        const baseSteps = 8000 + ((seed * 117) % 6000);
-        monthValuesList.push(baseSteps + activitySteps);
-      }
-    }
-    return monthValuesList;
-  }, [activities, user?.todaySteps]);
-
   const chartData = React.useMemo<Record<TabType, ChartData>>(() => {
     const now = new Date();
     const todaySteps = user?.todaySteps || 0;
+
+    const getMockStepsForDate = (date: Date): number => {
+      const seed = date.getDate() + date.getMonth() * 31 + date.getFullYear();
+      return 8000 + ((seed * 117) % 5000);
+    };
+
+    const getStepsForDate = (date: Date): number => {
+      const dateStr = date.toDateString();
+      const dayActivities = activities.filter(
+        (act) => new Date(act.timestamp).toDateString() === dateStr
+      );
+      const activitySteps = dayActivities.reduce((sum, act) => sum + (act.steps || 0), 0);
+      return getMockStepsForDate(date) + activitySteps;
+    };
     
     // 1. Day tab (24 hours)
-    const dayValues = Array(24).fill(0);
-    let activityStepsToday = 0;
-    
-    const todayStr = now.toDateString();
-    const todayActivities = activities.filter(
-      (act) => new Date(act.timestamp).toDateString() === todayStr
-    );
-    
-    todayActivities.forEach((act) => {
-      const hr = new Date(act.timestamp).getHours();
-      dayValues[hr] += act.steps || 0;
-      activityStepsToday += act.steps || 0;
-    });
-    
-    const diff = todaySteps - activityStepsToday;
-    if (diff > 0) {
-      const wakingHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
-      wakingHours.forEach((hr) => {
-        let weight = 1.0;
-        if (hr === 9 || hr === 10) weight = 1.5;
-        else if (hr === 12 || hr === 13) weight = 1.3;
-        else if (hr === 17 || hr === 18 || hr === 19) weight = 1.6;
-        else if (hr === 8 || hr === 22) weight = 0.5;
-        
-        const baseShare = diff / wakingHours.length;
-        const share = Math.round(baseShare * weight);
-        dayValues[hr] += share;
+    let dayValues = Array(24).fill(0);
+    if (realHourlySteps) {
+      dayValues = [...realHourlySteps];
+    } else {
+      let activityStepsToday = 0;
+      const todayStr = now.toDateString();
+      const todayActivities = activities.filter(
+        (act) => new Date(act.timestamp).toDateString() === todayStr
+      );
+      
+      todayActivities.forEach((act) => {
+        const hr = new Date(act.timestamp).getHours();
+        dayValues[hr] += act.steps || 0;
+        activityStepsToday += act.steps || 0;
       });
       
-      const finalDiff = todaySteps - dayValues.reduce((a, b) => a + b, 0);
-      dayValues[17] = Math.max(0, dayValues[17] + finalDiff);
+      const diff = todaySteps - activityStepsToday;
+      if (diff > 0) {
+        const wakingHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+        const hourWeights: Record<number, number> = {
+          8: 0.5,
+          9: 1.5,
+          10: 1.5,
+          11: 1.0,
+          12: 1.3,
+          13: 1.3,
+          14: 1.0,
+          15: 1.0,
+          16: 1.0,
+          17: 1.6,
+          18: 1.6,
+          19: 1.6,
+          20: 1.0,
+          21: 1.0,
+          22: 0.5,
+        };
+        
+        const totalWeight = Object.values(hourWeights).reduce((sum, w) => sum + w, 0);
+        
+        wakingHours.forEach((hr) => {
+          const weight = hourWeights[hr];
+          const share = Math.round((diff * weight) / totalWeight);
+          dayValues[hr] += share;
+        });
+        
+        const finalDiff = todaySteps - dayValues.reduce((a, b) => a + b, 0);
+        const maxHr = dayValues.indexOf(Math.max(...dayValues));
+        dayValues[maxHr] = Math.max(0, dayValues[maxHr] + finalDiff);
+      }
     }
     
     const dayTotalStr = todaySteps.toLocaleString();
@@ -331,16 +406,9 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
       } else if (i > currentDayIndex) {
         weekValues[i] = 0;
       } else {
-        const dayActivities = activities.filter((act) => {
-          const actDate = new Date(act.timestamp);
-          actDate.setHours(0, 0, 0, 0);
-          return actDate.getTime() === targetDay.getTime();
-        });
-        const activitySteps = dayActivities.reduce((sum, act) => sum + (act.steps || 0), 0);
-        
-        const seed = targetDay.getDate() + targetDay.getMonth() * 31;
-        const baseSteps = 8000 + ((seed * 93) % 5000);
-        weekValues[i] = baseSteps + activitySteps;
+        const dateKey = targetDay.toDateString();
+        const realSteps = realWeeklySteps[dateKey];
+        weekValues[i] = realSteps !== undefined && realSteps > 0 ? realSteps : getStepsForDate(targetDay);
       }
     }
     
@@ -350,9 +418,23 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
     const weekPbIndex = weekValues.indexOf(Math.max(...weekValues));
 
     // 3. Month tab (30 days)
-    const monthTotal = currentMonthValues.reduce((a, b) => a + b, 0);
+    const monthValuesList: number[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const targetDay = new Date();
+      targetDay.setDate(now.getDate() - i);
+      targetDay.setHours(0, 0, 0, 0);
+      
+      if (i === 0) {
+        monthValuesList.push(todaySteps);
+      } else {
+        const dateKey = targetDay.toDateString();
+        const realSteps = realMonthlySteps[dateKey];
+        monthValuesList.push(realSteps !== undefined && realSteps > 0 ? realSteps : getStepsForDate(targetDay));
+      }
+    }
+    const monthTotal = monthValuesList.reduce((a, b) => a + b, 0);
     const monthAvg = Math.round(monthTotal / 30);
-    const monthPbIndex = currentMonthValues.indexOf(Math.max(...currentMonthValues));
+    const monthPbIndex = monthValuesList.indexOf(Math.max(...monthValuesList));
 
     // 4. Year tab (12 calendar months)
     const yearValues = Array(12).fill(0);
@@ -361,31 +443,42 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
       if (m > currentMonth) {
         yearValues[m] = 0;
       } else if (m === currentMonth) {
-        const thisMonthActivities = activities.filter((act) => {
-          const actDate = new Date(act.timestamp);
-          return actDate.getMonth() === m && actDate.getFullYear() === now.getFullYear();
-        });
-        const activitySteps = thisMonthActivities.reduce((sum, act) => sum + (act.steps || 0), 0);
-        const daysSoFar = now.getDate();
-        const seed = m + now.getFullYear();
-        const estimatePastDays = (daysSoFar - 1) * (9500 + ((seed * 57) % 2000));
-        yearValues[m] = estimatePastDays + todaySteps + activitySteps;
+        const realSteps = realYearlySteps[m];
+        if (realSteps !== undefined && realSteps > 0) {
+          yearValues[m] = realSteps;
+        } else {
+          const daysSoFar = now.getDate();
+          let monthlySum = 0;
+          for (let d = 1; d < daysSoFar; d++) {
+            const targetDay = new Date(now.getFullYear(), m, d);
+            monthlySum += getStepsForDate(targetDay);
+          }
+          yearValues[m] = monthlySum + todaySteps;
+        }
       } else {
-        const monthActivities = activities.filter((act) => {
-          const actDate = new Date(act.timestamp);
-          return actDate.getMonth() === m && actDate.getFullYear() === now.getFullYear();
-        });
-        const activitySteps = monthActivities.reduce((sum, act) => sum + (act.steps || 0), 0);
-        const seed = m + now.getFullYear();
-        const daysInMonth = new Date(now.getFullYear(), m + 1, 0).getDate();
-        const baseSteps = daysInMonth * (9200 + ((seed * 83) % 2500));
-        yearValues[m] = baseSteps + activitySteps;
+        const realSteps = realYearlySteps[m];
+        if (realSteps !== undefined && realSteps > 0) {
+          yearValues[m] = realSteps;
+        } else {
+          const daysInMonth = new Date(now.getFullYear(), m + 1, 0).getDate();
+          let monthlySum = 0;
+          for (let d = 1; d <= daysInMonth; d++) {
+            const targetDay = new Date(now.getFullYear(), m, d);
+            monthlySum += getStepsForDate(targetDay);
+          }
+          yearValues[m] = monthlySum;
+        }
       }
     }
     
     const yearTotal = yearValues.reduce((a, b) => a + b, 0);
-    const monthsSoFar = currentMonth + 1;
-    const yearAvg = Math.round(yearTotal / monthsSoFar);
+    let totalDaysInYearSoFar = 0;
+    for (let m = 0; m < currentMonth; m++) {
+      totalDaysInYearSoFar += new Date(now.getFullYear(), m + 1, 0).getDate();
+    }
+    totalDaysInYearSoFar += now.getDate();
+    totalDaysInYearSoFar = Math.max(1, totalDaysInYearSoFar);
+    const yearAvg = Math.round(yearTotal / totalDaysInYearSoFar);
     const yearPbIndex = yearValues.indexOf(Math.max(...yearValues));
 
     return {
@@ -393,7 +486,14 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
         total: dayTotalStr,
         avg: dayAvgStr,
         values: dayValues,
-        labels: ['12A', '4A', '8A', '12P', '4P', '8P'],
+        labels: [
+          '12A', '', '', '', 
+          '4A', '', '', '', 
+          '8A', '', '', '', 
+          '12P', '', '', '', 
+          '4P', '', '', '', 
+          '8P', '', '', ''
+        ],
         pbIndex: dayPbIndex,
       },
       week: {
@@ -406,8 +506,14 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
       month: {
         total: monthTotal.toLocaleString(),
         avg: monthAvg.toLocaleString(),
-        values: currentMonthValues,
-        labels: ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
+        values: monthValuesList,
+        labels: [
+          '', '', '', 'Wk 1', '', '', '', 
+          '', '', '', 'Wk 2', '', '', '', 
+          '', '', '', 'Wk 3', '', '', '', 
+          '', '', '', 'Wk 4', '', '', '', 
+          '', ''
+        ],
         pbIndex: monthPbIndex,
       },
       year: {
@@ -418,7 +524,7 @@ export const InsightsScreen: React.FC<InsightsScreenProps> = ({ onBack }) => {
         pbIndex: yearPbIndex,
       },
     };
-  }, [activities, currentMonthValues, user?.todaySteps]);
+  }, [activities, user?.todaySteps, realHourlySteps, realWeeklySteps, realMonthlySteps, realYearlySteps]);
 
   const healthStats = React.useMemo(() => {
     const todaySteps = user?.todaySteps || 0;
