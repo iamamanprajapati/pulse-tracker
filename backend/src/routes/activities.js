@@ -8,9 +8,12 @@ const auth = require('../middleware/auth');
 // GET /api/activities
 router.get('/', auth, async (req, res) => {
   try {
-    const activities = await Activity.find({ user: req.user.id })
-      .sort({ timestamp: -1 })
-      .limit(20);
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const query = Activity.find({ user: req.user.id }).sort({ timestamp: -1 });
+    if (limit > 0) {
+      query.limit(limit);
+    }
+    const activities = await query;
     res.json(activities);
   } catch (error) {
     console.error('Error fetching activities:', error);

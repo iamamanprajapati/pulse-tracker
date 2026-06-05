@@ -28,7 +28,11 @@ interface QuestItem {
   isCompleted: boolean;
 }
 
-export const DashboardScreen: React.FC = () => {
+interface DashboardScreenProps {
+  onViewInsights?: () => void;
+}
+
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onViewInsights }) => {
   const { user, updateUserStats } = useAuth();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [quests, setQuests] = useState<QuestItem[]>([]);
@@ -348,7 +352,7 @@ export const DashboardScreen: React.FC = () => {
           </View>
 
           <View style={styles.ringActionsRow}>
-            <TouchableOpacity style={styles.solidActionBtn} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.solidActionBtn} onPress={onViewInsights} activeOpacity={0.85}>
               <Text style={styles.solidActionBtnText}>View Insights</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.outlineActionBtn} activeOpacity={0.85}>

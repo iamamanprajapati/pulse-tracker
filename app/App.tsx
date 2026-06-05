@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
+import { InsightsScreen } from './src/screens/InsightsScreen';
 import { RankingsScreen } from './src/screens/RankingsScreen';
 import { PrizesScreen } from './src/screens/PrizesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -24,6 +25,7 @@ const MainAppNavigator: React.FC = () => {
   const { token, loading } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [showInsights, setShowInsights] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   if (loading) {
@@ -46,7 +48,10 @@ const MainAppNavigator: React.FC = () => {
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <DashboardScreen />;
+        if (showInsights) {
+          return <InsightsScreen onBack={() => setShowInsights(false)} />;
+        }
+        return <DashboardScreen onViewInsights={() => setShowInsights(true)} />;
       case 'ranks':
         return <RankingsScreen />;
       case 'prizes':
@@ -74,6 +79,7 @@ const MainAppNavigator: React.FC = () => {
       {!isEditingProfile && (
         <FloatingNav activeTab={activeTab} onTabPress={(tab) => {
           setActiveTab(tab);
+          setShowInsights(false);
           setIsEditingProfile(false); // Reset profile edit state if navigating away
         }} />
       )}

@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 // Android emulator maps 10.0.2.2 to local host, iOS and Web use localhost/127.0.0.1
 const getBaseUrl = () => {
   // Use host machine's local network IP to allow connections from physical devices
-  return 'http://10.10.0.96:5001/api';
+  return 'http://192.168.1.7:5001/api';
 };
 
 const api = axios.create({

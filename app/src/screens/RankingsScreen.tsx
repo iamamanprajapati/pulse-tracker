@@ -24,120 +24,17 @@ export const RankingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Exact dataset matching screenshot ranks
-  const mockStandings: AthleteRank[] = [
-    {
-      id: '1',
-      name: 'Marcus V.',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBYFIEeixGmHQpLrZpfeNMaV-h4hndGVwdou1LQsWk8NsDqTpHHP-sV35E2TBGR3cmEBR305Ni7wCydZR4f_YHDapOE3mcVBIX-LE5cURmIEJ7Mnug5lG_WChZsr4ogSHpEARO9ZgQomou7kxfJ6iaL9jG7P_xizPinumIJcEAtovWfy3zRE2prwTLXlJj_yG3H5LTnb9etPqauQ5IHysjGlYjGjuAkYpBT9BWwRNbEBrMaIgSDSMrPHULgHMqgkLcEUMA1IzDDcR_a',
-      level: 48,
-      points: 15800, // 15.8k pts
-      shift: 0,
-      rank: 1,
-      isCurrentUser: false
-    },
-    {
-      id: '2',
-      name: 'Saran J.',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4c0w9yEsMuN4-FSlZ4IECHtUEZcuKqYxY804ppQ0CuHxlPD5MwB_nPR0HF9ruTdu8bQ1IU0tVMpKYohwc_00E8HXq4ELH2uvFfhyvvauvtB3YZBX0Fw1qxrYyqHbXOHptbSFL4vChRCZ_ZKYBTWfYgH-2dw9GAyyembvoW-Gr453xWxsnmmAKTZPcc1fxICpJlO11Psp0McIqRUYCSZkuzcQU3GITqNRriD1pWurjend1WZR89zsPM8qtTkkB_ohOOKyYhLVpw40t',
-      level: 45,
-      points: 12400, // 12.4k pts
-      shift: 1,
-      rank: 2,
-      isCurrentUser: false
-    },
-    {
-      id: '3',
-      name: 'David K.',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAu_9ASyJIYnNcWuzpXysVa_hswC4t9Ui-necptm8rVT6129Gv3SiOsQUgAgxV2r0muwV4NgbgsAcklL_mdRmmOX2l35jfdSgLyjxc0rb2gBjRSQbtL6kTKNl-IfJAKej-TAQNHDx6FebXsBLzX1j25f9sAFwgrpVQ3hd1c-ogfHmf-hsjVNl0csIG0CyYYd3wRLqxLAciqURuCXAKZbSq3hav9jUmkP4kYj8q8RA-QcbGo5K5eiSsILiqPd4AfdInlfPnfBbOOrzxX',
-      level: 41,
-      points: 11900, // 11.9k pts
-      shift: -1,
-      rank: 3,
-      isCurrentUser: false
-    },
-    {
-      id: '4',
-      name: 'Elena Rodriguez',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4c0w9yEsMuN4-FSlZ4IECHtUEZcuKqYxY804ppQ0CuHxlPD5MwB_nPR0HF9ruTdu8bQ1IU0tVMpKYohwc_00E8HXq4ELH2uvFfhyvvauvtB3YZBX0Fw1qxrYyqHbXOHptbSFL4vChRCZ_ZKYBTWfYgH-2dw9GAyyembvoW-Gr453xWxsnmmAKTZPcc1fxICpJlO11Psp0McIqRUYCSZkuzcQU3GITqNRriD1pWurjend1WZR89zsPM8qtTkkB_ohOOKyYhLVpw40t',
-      level: 38,
-      points: 9842,
-      shift: 12,
-      rank: 4,
-      isCurrentUser: false,
-      shiftType: 'up'
-    },
-    {
-      id: '5',
-      name: 'Alex Thompson', // Highlighted as dynamic "YOU"
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCVWf_EgZ3ed05m---xLADr8lrRgvXEJk0hUfWx4YJ3Qk1LyBlK4PxAdPKtNlZzkBRkDpUz-v1OnJ3iVD9w0IxLzCd5k7iBZWKDspsxsCSPwdsFWj1YqUeEytEbvbxmdNdo2sqgzrj9WCD0O9WxbFKubtW8uUQL6NcRZwHemHa7hvjvMeRoEgmD3pbTrovkskbo-wcX_25tlFYAaZcI6DHoLGpP136JuRzqQtPbtrej-0mmZz4HLXUU0pRnJAps_tKhCZJGvxVOGInu',
-      level: 42,
-      points: 8910,
-      shift: 4,
-      rank: 5,
-      isCurrentUser: true,
-      shiftType: 'up'
-    },
-    {
-      id: '6',
-      name: 'Kevin Liang',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAu_9ASyJIYnNcWuzpXysVa_hswC4t9Ui-necptm8rVT6129Gv3SiOsQUgAgxV2r0muwV4NgbgsAcklL_mdRmmOX2l35jfdSgLyjxc0rb2gBjRSQbtL6kTKNl-IfJAKej-TAQNHDx6FebXsBLzX1j25f9sAFwgrpVQ3hd1c-ogfHmf-hsjVNl0csIG0CyYYd3wRLqxLAciqURuCXAKZbSq3hav9jUmkP4kYj8q8RA-QcbGo5K5eiSsILiqPd4AfdInlfPnfBbOOrzxX',
-      level: 36,
-      points: 8750,
-      shift: 2,
-      rank: 6,
-      isCurrentUser: false,
-      shiftType: 'down'
-    },
-    {
-      id: '7',
-      name: 'Priya Sharma',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4c0w9yEsMuN4-FSlZ4IECHtUEZcuKqYxY804ppQ0CuHxlPD5MwB_nPR0HF9ruTdu8bQ1IU0tVMpKYohwc_00E8HXq4ELH2uvFfhyvvauvtB3YZBX0Fw1qxrYyqHbXOHptbSFL4vChRCZ_ZKYBTWfYgH-2dw9GAyyembvoW-Gr453xWxsnmmAKTZPcc1fxICpJlO11Psp0McIqRUYCSZkuzcQU3GITqNRriD1pWurjend1WZR89zsPM8qtTkkB_ohOOKyYhLVpw40t',
-      level: 39,
-      points: 8420,
-      shift: 8,
-      rank: 7,
-      isCurrentUser: false,
-      shiftType: 'up'
-    },
-    {
-      id: '8',
-      name: 'Tom Wilson',
-      photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAu_9ASyJIYnNcWuzpXysVa_hswC4t9Ui-necptm8rVT6129Gv3SiOsQUgAgxV2r0muwV4NgbgsAcklL_mdRmmOX2l35jfdSgLyjxc0rb2gBjRSQbtL6kTKNl-IfJAKej-TAQNHDx6FebXsBLzX1j25f9sAFwgrpVQ3hd1c-ogfHmf-hsjVNl0csIG0CyYYd3wRLqxLAciqURuCXAKZbSq3hav9jUmkP4kYj8q8RA-QcbGo5K5eiSsILiqPd4AfdInlfPnfBbOOrzxX',
-      level: 32,
-      points: 8105,
-      shift: 0,
-      rank: 8,
-      isCurrentUser: false,
-      shiftType: 'none'
-    }
-  ];
-
   const fetchRankings = async () => {
     try {
-      // Connect to server leaderboard data, then fall back to mock data
       const res = await api.get('/leaderboard');
-      // If we have actual database athletes, merge them with standings
       if (res.data && res.data.length > 0) {
-        // Map current user dynamic stats directly
-        const currentUserStats = res.data.find((u: any) => u.isCurrentUser);
-        const updatedStandings = mockStandings.map(athlete => {
-          if (athlete.isCurrentUser && currentUserStats) {
-            return {
-              ...athlete,
-              points: currentUserStats.points || 8910,
-              level: currentUserStats.level || 42
-            };
-          }
-          return athlete;
-        });
-        setRankings(updatedStandings);
+        setRankings(res.data);
       } else {
-        setRankings(mockStandings);
+        setRankings([]);
       }
     } catch (err) {
-      console.warn('Rankings: Fallback to local standings list', err);
-      setRankings(mockStandings);
+      console.warn('Rankings: Failed to fetch leaderboard data', err);
+      setRankings([]);
     } finally {
       setLoading(false);
     }
