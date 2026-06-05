@@ -101,13 +101,21 @@ export const fetchDailyHealthMetrics = async (): Promise<DailyMetrics> => {
       endTime: now.toISOString(),
     };
 
-    // 1. Read step intervals
-    const stepsResult = await hc.readRecords('Steps', { timeRangeFilter });
-    const steps = stepsResult.records.reduce((sum: number, r: any) => sum + (r.count || 0), 0);
+    console.log(`Health Connect Query: startTime=${startOfDay.toISOString()}, endTime=${now.toISOString()}`);
 
-    // 2. Read calories burned intervals
-    const calsResult = await hc.readRecords('TotalCaloriesBurned', { timeRangeFilter });
-    const calories = calsResult.records.reduce((sum: number, r: any) => sum + (r.energy?.inKilocalories || 0), 0);
+    // 1. Aggregate step count
+    const stepsResult = await hc.aggregateRecord({
+      recordType: 'Steps',
+      timeRangeFilter,
+    });
+    const steps = stepsResult.COUNT_TOTAL || 0;
+
+    // 2. Aggregate calories burned
+    const calsResult = await hc.aggregateRecord({
+      recordType: 'TotalCaloriesBurned',
+      timeRangeFilter,
+    });
+    const calories = calsResult.ENERGY_TOTAL?.inKilocalories || 0;
 
     console.log(`Health Connect: Synced metrics - Steps: ${steps}, Calories: ${calories}`);
     return {

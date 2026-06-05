@@ -193,8 +193,8 @@ export const DashboardScreen: React.FC = () => {
     }
   };
 
-  const todaySteps = user && user.todaySteps !== undefined ? user.todaySteps : (user ? Math.round(user.lifetimeSteps % user.dailyStepGoal) : 7542);
-  const todayCalories = user && user.todayCalories !== undefined ? user.todayCalories : 1240;
+  const todaySteps = user && user.todaySteps !== undefined ? user.todaySteps : 0;
+  const todayCalories = user && user.todayCalories !== undefined ? user.todayCalories : 0;
   const calorieProgress = Math.min(100, Math.round((todayCalories / 500) * 100));
 
   const dailyGoal = user ? user.dailyStepGoal : 10000;

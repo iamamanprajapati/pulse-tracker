@@ -150,6 +150,8 @@ router.post('/google', async (req, res) => {
         lifetimeSteps: user.lifetimeSteps,
         lifetimeKilometers: user.lifetimeKilometers,
         lifetimeCalories: user.lifetimeCalories,
+        todaySteps: user.todaySteps,
+        todayCalories: user.todayCalories,
         role: user.role,
         joinedDate: user.joinedDate,
       }
