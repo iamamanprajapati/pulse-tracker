@@ -10,27 +10,15 @@ router.get('/', auth, async (req, res) => {
     
     // Convert lifetimeSteps to active points or steps, sorting them
     // To represent a dynamic leaderboard, we sort users by their steps/metrics
-    const sortedAthletes = users.map((u, idx) => {
-      // Map to leaderboard athlete representation
-      // We assign some static shifts for mock athletes to look natural,
-      // and compute dynamic points from their statistics.
-      let points = Math.round(u.lifetimeSteps / 100) + 1200; // Base score + step points
-      if (u.email === 'alex@pulsetrack.com') {
-        points = 7542; // Match dashboard steps for mock Alex Henderson
-      }
-      
-      let shift = 0;
-      if (idx % 3 === 0) shift = 1;
-      if (idx % 3 === 1) shift = -1;
-
+    const sortedAthletes = users.map((u) => {
       return {
         id: u._id,
         name: u.name,
-        photoUrl: u.photoUrl,
+        photoUrl: u.photoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80',
         level: u.level,
-        points: points,
-        shift: shift,
-        isCurrentUser: false // updated below
+        points: u.lifetimeSteps || 0,
+        shift: 0,
+        isCurrentUser: false
       };
     });
 
